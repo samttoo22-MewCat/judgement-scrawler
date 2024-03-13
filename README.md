@@ -10,7 +10,7 @@
 
 ## 使用方式
 
-1. 確保您的系統已安裝Python和必要的套件(`selenium`、`seleniumbase`)。
+1. 確保您的系統已安裝Python和必要的套件(`seleniumbase`)。
 2. 呼叫`get_all_judgement_page`方法並提供搜尋關鍵字、法院名稱和判決類型作為參數。
 
 ## 用法範例
