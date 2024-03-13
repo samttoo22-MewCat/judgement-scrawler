@@ -1,6 +1,6 @@
 # Judgement Crawler
 
-這是一個使用Python和Selenium寫的網路爬蟲程式,用於自動從台灣司法院網站下載指定條件的判決書。
+這是一個使用Python和SeleniumBase寫的網路爬蟲程式，用於自動從台灣司法院網站下載指定條件的判決書。
 
 ## 功能
 
