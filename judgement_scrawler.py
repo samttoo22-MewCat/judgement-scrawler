@@ -65,6 +65,8 @@ class JudgementScrawler:
         return links_count
     
     def get_judgement_links(self, search_str, court_name, judgement_type):
+        if(judgement_type != ''):
+            splited_judgement_type = judgement_type.split(" ")
         def get_month_days(year, month):
             normal_month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
             special_month_days = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -111,8 +113,7 @@ class JudgementScrawler:
                 submit_button = self.driver.find_element(By.XPATH, '//input[@id="btnQry"]')
                 search_input = self.driver.find_element(By.XPATH, '//input[@id="jud_kw"]') 
                 if(judgement_type != ''):
-                    judgement_type = judgement_type.split(" ")
-                    for j in judgement_type:
+                    for j in splited_judgement_type:
                         type_check = self.driver.find_element(By.XPATH, f'//table[@class="search-table"]/tbody/tr/td/label[text()="{j}"]')
                         type_check = type_check.find_element(By.TAG_NAME, 'input')
                         type_check.click()
@@ -228,4 +229,4 @@ class JudgementScrawler:
         print("案件全數抓取完成，程式結束。")
                 
 JudgementScrawler = JudgementScrawler()
-JudgementScrawler.get_all_judgement_page(search_str="性別平等教育法", court_name='', judgement_type='')
+JudgementScrawler.get_all_judgement_page(search_str="性別平等教育法", court_name='', judgement_type='刑事 民事')
