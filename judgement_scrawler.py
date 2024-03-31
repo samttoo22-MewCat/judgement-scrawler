@@ -35,20 +35,35 @@ class JudgementScrawler:
         submit_button.click()
         
         list_href = self.driver.find_elements(By.XPATH, "//div[@id='collapseGrpCourt']/div[@class='panel-body']/ul/li")
-                
-        for l in list_href:
-            type = l.find_element(By.TAG_NAME, "a").get_attribute("textContent")
-            if(court_name in type):
-                list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
-            
-        self.driver.get(list_href)
-        
-        self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']")))
-        pages = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span").get_attribute("textContent")
-        pages = pages.split(" . ")[0]
-        print(pages)
-        return pages.split(" ")[1]
+       
+        frame = self.driver.find_element(By.ID, "iframe-data")
+        self.driver.switch_to.frame(frame)
 
+        # 所有法院
+        if(court_name == ''):
+            pages = self.driver.find_element(By.ID, "plPager")
+            pages = pages.get_attribute("textContent").split(" . ")[0].strip().split(" ")[1]
+            return pages
+        # 指定法院
+        else:
+            type = list_href.find_element(By.TAG_NAME, "a").get_attribute("textContent")
+            print(type)
+            if(court_name in type):
+                list_href = list_href.find_element(By.TAG_NAME, "a").get_attribute("href")
+        
+        links_count = 0
+
+        if(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']"))):
+            links = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span").get_attribute("textContent")
+            links = links.split(" . ")[0]
+            links = links.split(" ")[1]
+            return links
+        else:
+            links = self.driver.find_element(By.XPATH, "//table[@id='jud']/tbody/tr[@class='summery]")
+            links = len(links)
+            links_count += links
+        return links_count
+    
     def get_judgement_links(self, search_str, court_name, judgement_type):
         def get_month_days(year, month):
             normal_month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -87,7 +102,7 @@ class JudgementScrawler:
             #搜尋一整年中每個月的案件
             searching_months = get_year_months(searching_year)
             
-            if(month_break_count > 1):
+            if(month_break_count > 12):
                 month_break_count = 0
                 break
             for searching_month in range(searching_months, 0, -1):
@@ -125,30 +140,34 @@ class JudgementScrawler:
 
                 result_count = int(result_count.get_attribute("textContent"))
                 if(result_count == 0):
+                    print(f"沒有搜尋到 {searching_year} 年度 {searching_month} 月的案件。")
                     month_break_count += 1
                     reset_input()
-                    break
+                    continue
                 else:
                     month_break_count = 0
                 
-                #拿到 特定法院 的 完整搜尋連結
-                full_list_href = self.driver.find_element(By.XPATH, "//div[@id='result-count']/ul/li/a").get_attribute("href")
                 list_href = self.driver.find_elements(By.XPATH, "//div[@id='collapseGrpCourt']/div[@class='panel-body']/ul/li")
                 
-
-                for l in list_href:
-                    type = l.find_element(By.TAG_NAME, "a").get_attribute("textContent")
+                
+                # 所有法院
+                if(court_name == ''):
+                    list_href = self.driver.find_element(By.XPATH, "//*[@id='result-count']/ul/li/a").get_attribute("href")
+                # 指定法院
+                else:
+                    type = list_href.find_element(By.TAG_NAME, "a").get_attribute("textContent")
                     if(court_name in type):
-                        list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
-                    
+                        list_href = list_href.find_element(By.TAG_NAME, "a").get_attribute("href")
+                        
                 #如果沒有這個法院的搜尋結果，就跳下一個月
                 if(isinstance(list_href, list)):
                     reset_input()
                     break
+                
                 self.driver.get(list_href)
                 
-                #self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']")))
                 #試圖抓取
+                
                 try:
                     pages = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span").get_attribute("textContent")
                     pages = pages.split(" / ")[1].split(" ")[0]
@@ -156,9 +175,7 @@ class JudgementScrawler:
                     pages = 1
                 
                 #在搜尋結果頁面中 拿到每個案件的連結
-                for i in range(0, int(pages)):
-                    page_now = i + 1
-                    
+                for i in range(0, int(pages)):           
                     judgement_list = self.driver.find_elements(By.XPATH, "//table[@id='jud']/tbody/tr/td/a")
                     for j in judgement_list:
                         judgement_links.append(j.get_attribute("href"))
@@ -172,19 +189,19 @@ class JudgementScrawler:
                         break
                 reset_input()
                 print(f"已抓取案件總數: {len(judgement_links)}")
-        
+        print(f"案件連結抓取完畢，總共 {len(judgement_links)} 件，開始下載案件內容。")
         return judgement_links
 
     def get_all_judgement_page(self, search_str, court_name, judgement_type):
-        links_count = self.get_judgement_links_count(search_str, court_name)
+        links = self.get_judgement_links_count(search_str, court_name)
+        if(judgement_type == ''):
+            print(f"總共 {links} 件")
         os.makedirs('judgement_docs', exist_ok=True)
         judgement_links = self.get_judgement_links(search_str, court_name, judgement_type)   
         def get_judgement_page(link):
             link_id = link.split('&id=')[1].split('&ot=')[0]
             pure_page_link = 'https://judgment.judicial.gov.tw/EXPORTFILE/reformat.aspx?type=JD' + '&id=' + link_id
             self.driver.get(pure_page_link)
-            
-            #self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@class='dialog-content']/div[@class='reformat-content']")))
             
             html = self.driver.page_source
             text = re.sub(r'<[^>]+>', '\n', html)
@@ -195,7 +212,6 @@ class JudgementScrawler:
                 sys.exit()
             title = text.split('\n')[0]
             if(title == '\\t系統訊息'  or title == '系統訊息'):
-
                 return 0
             with open('judgement_docs/' + title + '.txt', 'w', encoding='utf-8') as f:
                 f.write(text)
@@ -206,8 +222,7 @@ class JudgementScrawler:
             get_judgement_page(link)
             count += 1
             print(f"已儲存案件數: {count}/{len(judgement_links)}")
-            
-        
-        
+        print("案件全數抓取完成，程式結束。")
+                
 JudgementScrawler = JudgementScrawler()
-JudgementScrawler.get_all_judgement_page(search_str="李俊彥 新北地方法院 刑事判決", court_name='新北地方法院', judgement_type='刑事')
+JudgementScrawler.get_all_judgement_page(search_str="性別平等教育法", court_name='', judgement_type='刑事')
