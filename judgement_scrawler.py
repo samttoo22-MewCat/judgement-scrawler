@@ -110,10 +110,13 @@ class JudgementScrawler:
                 self.wait.until(EC.visibility_of_element_located((By.XPATH, '//table[@class="search-table"]/tbody/tr/td/label[@id="vtype_C"]')))
                 submit_button = self.driver.find_element(By.XPATH, '//input[@id="btnQry"]')
                 search_input = self.driver.find_element(By.XPATH, '//input[@id="jud_kw"]') 
-                type_check = self.driver.find_element(By.XPATH, f'//table[@class="search-table"]/tbody/tr/td/label[text()="{judgement_type}"]')
-                type_check = type_check.find_element(By.TAG_NAME, 'input')
-                type_check.click()
-
+                if(judgement_type != ''):
+                    judgement_type = judgement_type.split(" ")
+                    for j in judgement_type:
+                        type_check = self.driver.find_element(By.XPATH, f'//table[@class="search-table"]/tbody/tr/td/label[text()="{j}"]')
+                        type_check = type_check.find_element(By.TAG_NAME, 'input')
+                        type_check.click()
+                    
                 #輸入搜尋條件
                 from_year_input = self.driver.find_element(By.XPATH, '//input[@id="dy1"]')
                 from_month_input = self.driver.find_element(By.XPATH, '//input[@id="dm1"]')
@@ -225,4 +228,4 @@ class JudgementScrawler:
         print("案件全數抓取完成，程式結束。")
                 
 JudgementScrawler = JudgementScrawler()
-JudgementScrawler.get_all_judgement_page(search_str="性別平等教育法", court_name='', judgement_type='刑事')
+JudgementScrawler.get_all_judgement_page(search_str="性別平等教育法", court_name='', judgement_type='')
