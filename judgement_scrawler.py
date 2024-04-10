@@ -1,5 +1,6 @@
 import asyncio
 import os
+import aiohttp
 from seleniumbase import Driver
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -219,12 +220,12 @@ class JudgementScrawler:
         print(f"案件連結抓取完畢，總共 {len(judgement_links)} 件，開始下載案件內容。")
         return judgement_links
 
-    def get_all_judgement_page(self, search_str, court_name, judgement_type):
-        links = self.get_judgement_links_count(search_str, court_name)
+    async def get_all_judgement_page(self, search_str, court_name, judgement_type):
+        links = await asyncio.to_thread(self.get_judgement_links_count, search_str, court_name)
         if(judgement_type == ''):
             print(f"總共 {links} 件")
         os.makedirs('judgement_docs', exist_ok=True)
-        judgement_links = self.get_judgement_links(search_str, court_name, judgement_type)   
+        judgement_links = await asyncio.to_thread(self.get_judgement_links, search_str, court_name, judgement_type) 
         def get_judgement_page(link):
             link_id = link.split('&id=')[1].split('&ot=')[0]
             pure_page_link = 'https://judgment.judicial.gov.tw/EXPORTFILE/reformat.aspx?type=JD' + '&id=' + link_id
@@ -250,11 +251,22 @@ class JudgementScrawler:
             count += 1
             print(f"已儲存案件數: {count}/{len(judgement_links)}")
         print("案件全數抓取完成，程式結束。")
-                
-JudgementScrawler = JudgementScrawler()
-court_name_list = ["臺灣臺北地方法院", "臺灣士林地方法院", "臺灣新北地方法院", "臺灣宜蘭地方法院", 
-                   "臺灣基隆地方法院", "臺灣桃園地方法院", "臺灣新竹地方法院",  "臺灣苗栗地方法院", "臺灣臺中地方法院", "臺灣彰化地方法院", "臺灣南投地方法院", 
-                   "臺灣雲林地方法院", "臺灣嘉義地方法院", "臺灣臺南地方法院", "臺灣高雄地方法院", "臺灣橋頭地方法院", "臺灣花蓮地方法院", "臺灣臺東地方法院", 
-                   "臺灣澎湖地方法院", "福建高等法院金門分院", "福建金門地方法院", "福建連江地方法院"]
-for court_name in court_name_list:
-    JudgementScrawler.get_all_judgement_page(search_str="刑事判決", court_name=court_name, judgement_type='刑事')
+
+async def get_all_judgement_docs():
+    tasks = []
+    court_name_list = ["臺灣臺北地方法院", "臺灣士林地方法院", "臺灣新北地方法院", "臺灣宜蘭地方法院", 
+                        "臺灣基隆地方法院", "臺灣桃園地方法院", "臺灣新竹地方法院",  "臺灣苗栗地方法院", "臺灣臺中地方法院", "臺灣彰化地方法院", "臺灣南投地方法院", 
+                        "臺灣雲林地方法院", "臺灣嘉義地方法院", "臺灣臺南地方法院", "臺灣高雄地方法院", "臺灣橋頭地方法院", "臺灣花蓮地方法院", "臺灣臺東地方法院", 
+                        "臺灣澎湖地方法院", "福建高等法院金門分院", "福建金門地方法院", "福建連江地方法院"]
+    async def get_single_judgement_docs(court_name):
+        JudgementScrawler01 = JudgementScrawler()
+        await JudgementScrawler01.get_all_judgement_page(search_str='刑事判決', court_name=court_name, judgement_type='刑事')
+        
+    for court_name in court_name_list:
+        tasks.append(asyncio.create_task(get_single_judgement_docs(court_name)))
+
+    await asyncio.gather(*tasks)
+
+
+if __name__ == "__main__":
+    asyncio.run(get_all_judgement_docs())
