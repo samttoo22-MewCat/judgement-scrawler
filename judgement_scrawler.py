@@ -17,7 +17,7 @@ class JudgementScrawler:
         self.driver = Driver(disable_gpu=False,
                              agent='Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36',
                              incognito=True,
-                             #headless=True,
+                             headless=True,
                              browser='chrome',
                              uc=True
                              )
@@ -49,7 +49,6 @@ class JudgementScrawler:
             self.driver.switch_to.default_content()
             for l in list_href:
                 type = l.get_attribute("textContent")
-                print(type)
                 if(court_name in type):
                     list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
             self.driver.switch_to.frame(frame)
@@ -107,96 +106,116 @@ class JudgementScrawler:
         for searching_year in range(year_now, year_now - 21, -1):
             #搜尋一整年中每個月的案件
             searching_months = get_year_months(searching_year)
-            
             if(month_break_count > 12):
                 month_break_count = 0
                 break
             for searching_month in range(searching_months, 0, -1):
-                print(f"開始抓取 {searching_year} 年度 {searching_month} 月的案件")
-                self.wait.until(EC.visibility_of_element_located((By.XPATH, '//table[@class="search-table"]/tbody/tr/td/label[@id="vtype_C"]')))
-                submit_button = self.driver.find_element(By.XPATH, '//input[@id="btnQry"]')
-                search_input = self.driver.find_element(By.XPATH, '//input[@id="jud_kw"]') 
-                if(judgement_type != ''):
-                    for j in splited_judgement_type:
-                        type_check = self.driver.find_element(By.XPATH, f'//table[@class="search-table"]/tbody/tr/td/label[text()="{j}"]')
-                        type_check = type_check.find_element(By.TAG_NAME, 'input')
-                        type_check.click()
-                    
-                #輸入搜尋條件
-                from_year_input = self.driver.find_element(By.XPATH, '//input[@id="dy1"]')
-                from_month_input = self.driver.find_element(By.XPATH, '//input[@id="dm1"]')
-                from_day_input = self.driver.find_element(By.XPATH, '//input[@id="dd1"]')
-                to_year_input = self.driver.find_element(By.XPATH, '//input[@id="dy2"]')
-                to_month_input = self.driver.find_element(By.XPATH, '//input[@id="dm2"]')
-                to_day_input = self.driver.find_element(By.XPATH, '//input[@id="dd2"]')
-                
                 month_days = get_month_days(searching_year, searching_month)
-                
-                from_year_input.send_keys(searching_year)
-                to_year_input.send_keys(searching_year)
-                
-                from_month_input.send_keys(searching_month)
-                to_month_input.send_keys(searching_month)
-                
-                from_day_input.send_keys(1)
-                to_day_input.send_keys(month_days)
-                
-                search_input.send_keys(search_str)
-                submit_button.click()
-                
-                result_count = self.driver.find_element(By.XPATH, "//div[@id='result-count']/ul/li/a/span")
+                month_days_part1 = month_days // 5
+                month_days_part2 = month_days // 5 * 2
+                month_days_part3 = month_days // 5 * 3
+                month_days_part4 = month_days // 5 * 4
+                month_days_part5 = month_days
+                month_days_parts = [month_days_part1, month_days_part2, month_days_part3, month_days_part4, month_days_part5]
 
-                result_count = int(result_count.get_attribute("textContent"))
-                if(result_count == 0):
+                month_result_count = 0
+                print(f"開始抓取 {searching_year} 年度 {searching_month} 月的案件")
+                for part in range(5):
+                    searching_month_days = month_days_parts[part]
+                    
+                    self.wait.until(EC.visibility_of_element_located((By.XPATH, '//table[@class="search-table"]/tbody/tr/td/label[@id="vtype_C"]')))
+                    submit_button = self.driver.find_element(By.XPATH, '//input[@id="btnQry"]')
+                    search_input = self.driver.find_element(By.XPATH, '//input[@id="jud_kw"]') 
+                    if(judgement_type != ''):
+                        for j in splited_judgement_type:
+                            type_check = self.driver.find_element(By.XPATH, f'//table[@class="search-table"]/tbody/tr/td/label[text()="{j}"]')
+                            type_check = type_check.find_element(By.TAG_NAME, 'input')
+                            type_check.click()
+                        
+                    #輸入搜尋條件
+                    from_year_input = self.driver.find_element(By.XPATH, '//input[@id="dy1"]')
+                    from_month_input = self.driver.find_element(By.XPATH, '//input[@id="dm1"]')
+                    from_day_input = self.driver.find_element(By.XPATH, '//input[@id="dd1"]')
+                    to_year_input = self.driver.find_element(By.XPATH, '//input[@id="dy2"]')
+                    to_month_input = self.driver.find_element(By.XPATH, '//input[@id="dm2"]')
+                    to_day_input = self.driver.find_element(By.XPATH, '//input[@id="dd2"]')
+                    
+                    from_year_input.send_keys(searching_year)
+                    to_year_input.send_keys(searching_year)
+                    
+                    from_month_input.send_keys(searching_month)
+                    to_month_input.send_keys(searching_month)
+                    
+                    if(part == 0):
+                        from_day_input.send_keys(1)
+                    elif(part == 1):
+                        from_day_input.send_keys(month_days_part1)
+                    elif(part == 2):
+                        from_day_input.send_keys(month_days_part2)
+                    elif(part == 3):
+                        from_day_input.send_keys(month_days_part3)
+                    elif(part == 4):
+                        from_day_input.send_keys(month_days_part4)
+                    to_day_input.send_keys(searching_month_days)
+                    
+                    search_input.send_keys(search_str)
+                    submit_button.click()
+                    
+                    result_count = self.driver.find_element(By.XPATH, "//div[@id='result-count']/ul/li/a/span")
+
+                    result_count = int(result_count.get_attribute("textContent"))
+                    month_result_count += result_count
+                    
+                    list_href = self.driver.find_elements(By.XPATH, "//div[@id='collapseGrpCourt']/div[@class='panel-body']/ul/li")
+                    
+                    # 所有法院
+                    if(court_name == ''):
+                        list_href = self.driver.find_element(By.XPATH, "//*[@id='result-count']/ul/li/a").get_attribute("href")
+                    # 指定法院
+                    else:
+                        for l in list_href:
+                            type = l.get_attribute("textContent")
+                            if(court_name in type):
+                                list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
+                            
+                    #如果沒有這個法院的搜尋結果，就跳下一個月
+                    if(isinstance(list_href, list)):
+                        reset_input()
+                        break
+                    
+                    self.driver.get(list_href)
+                    
+                    #試圖抓取
+                    
+                    try:
+                        pages = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span").get_attribute("textContent")
+                        pages = pages.split(" / ")[1].split(" ")[0]
+                    except:
+                        pages = 1
+                    
+                    #在搜尋結果頁面中 拿到每個案件的連結
+                    for i in range(0, int(pages)):           
+                        judgement_list = self.driver.find_elements(By.XPATH, "//table[@id='jud']/tbody/tr/td/a")
+                        for j in judgement_list:
+                            judgement_links.append(j.get_attribute("href"))
+                        
+                        #如果有下一頁就跳轉
+                        #self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']")))
+                        try:
+                            next_page_button = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span/a[@id='hlNext']")
+                            next_page_button.click()
+                        except:
+                            break
+                    reset_input()
+                    print(f"已抓取案件總數: {len(judgement_links)}")
+        
+                if(month_result_count == 0):
                     print(f"沒有搜尋到 {searching_year} 年度 {searching_month} 月的案件。")
                     month_break_count += 1
                     reset_input()
                     continue
                 else:
                     month_break_count = 0
-                
-                list_href = self.driver.find_elements(By.XPATH, "//div[@id='collapseGrpCourt']/div[@class='panel-body']/ul/li")
-                
-                # 所有法院
-                if(court_name == ''):
-                    list_href = self.driver.find_element(By.XPATH, "//*[@id='result-count']/ul/li/a").get_attribute("href")
-                # 指定法院
-                else:
-                    for l in list_href:
-                        type = l.get_attribute("textContent")
-                        if(court_name in type):
-                            list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
-                        
-                #如果沒有這個法院的搜尋結果，就跳下一個月
-                if(isinstance(list_href, list)):
-                    reset_input()
-                    break
-                
-                self.driver.get(list_href)
-                
-                #試圖抓取
-                
-                try:
-                    pages = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span").get_attribute("textContent")
-                    pages = pages.split(" / ")[1].split(" ")[0]
-                except:
-                    pages = 1
-                
-                #在搜尋結果頁面中 拿到每個案件的連結
-                for i in range(0, int(pages)):           
-                    judgement_list = self.driver.find_elements(By.XPATH, "//table[@id='jud']/tbody/tr/td/a")
-                    for j in judgement_list:
-                        judgement_links.append(j.get_attribute("href"))
-                    
-                    #如果有下一頁就跳轉
-                    #self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']")))
-                    try:
-                        next_page_button = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span/a[@id='hlNext']")
-                        next_page_button.click()
-                    except:
-                        break
-                reset_input()
-                print(f"已抓取案件總數: {len(judgement_links)}")
         print(f"案件連結抓取完畢，總共 {len(judgement_links)} 件，開始下載案件內容。")
         return judgement_links
 
