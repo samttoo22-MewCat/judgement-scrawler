@@ -1,5 +1,6 @@
 import asyncio
 import os
+import threading
 import aiohttp
 from seleniumbase import Driver
 from selenium import webdriver
@@ -20,16 +21,16 @@ class JudgementScrawler:
                              incognito=True,
                              headless=True,
                              browser='chrome',
-                             uc=True
+                             uc=True,
+                             no_sandbox=True,
                              )
-        self.lock = asyncio.Lock()
         self.browser_executable_path = ""
         self.browser_executable_path = os.path.abspath("chromedriver.exe")
         self.wait = WebDriverWait(self.driver, 10, poll_frequency=1, ignored_exceptions=[ElementNotVisibleException, ElementNotSelectableException])
         
         self.driver.get('https://judgment.judicial.gov.tw/FJUD/default.aspx')
     
-    def get_judgement_links_count(self, search_str, court_name):
+    async def get_judgement_links_count(self, search_str, court_name):
         submit_button = self.driver.find_element(By.XPATH, '//input[@id="btnSimpleQry"]')
         search_input = self.driver.find_element(By.XPATH, '//input[@id="txtKW"]')
         search_input.send_keys(search_str)
@@ -56,9 +57,13 @@ class JudgementScrawler:
             
         
         links_count = 0
-
+        try:
+            self.wait.until(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']")) or EC.visibility_of_element_located((By.XPATH, "//table[@id='jud']/tbody/tr[@class='summery]")))
+        except:
+            print(self.driver.page_source)
+            sys.exit()
         if(EC.visibility_of_element_located((By.XPATH, "//div[@id='plPager']"))):
-            links = self.driver.find_element(By.XPATH, "//div[@id='plPager']/span").get_attribute("textContent")
+            links = self.driver.find_element(By.XPATH, "//div[@id='plPager']").get_attribute("textContent")
             links = links.split(" . ")[0]
             links = links.split(" ")[1]
             return links
@@ -66,9 +71,9 @@ class JudgementScrawler:
             links = self.driver.find_element(By.XPATH, "//table[@id='jud']/tbody/tr[@class='summery]")
             links = len(links)
             links_count += links
-        return links_count
+            return links_count
     
-    def get_judgement_links(self, search_str, court_name, judgement_type):
+    async def get_judgement_links(self, search_str, court_name, judgement_type):
         if(judgement_type != ''):
             splited_judgement_type = judgement_type.split(" ")
         def get_month_days(year, month):
@@ -91,11 +96,14 @@ class JudgementScrawler:
                 return 12
         
         def reset_input():
+            self.driver.delete_all_cookies()
             self.driver.get('https://judgment.judicial.gov.tw/FJUD/Default_AD.aspx')
+
             reset_button = self.driver.find_element(By.XPATH, '//button[@id="btnReset"]')
             reset_button.click()
             
         self.driver.get('https://judgment.judicial.gov.tw/FJUD/Default_AD.aspx')
+        
         judgement_links = []
         today = datetime.date.today()
         year_now = today.year - 1911
@@ -123,8 +131,11 @@ class JudgementScrawler:
                 print(f"開始抓取 {searching_year} 年度 {searching_month} 月的案件")
                 for part in range(5):
                     searching_month_days = month_days_parts[part]
-                    
-                    self.wait.until(EC.visibility_of_element_located((By.XPATH, '//table[@class="search-table"]/tbody/tr/td/label[@id="vtype_C"]')))
+                    try:
+                        self.wait.until(EC.visibility_of_element_located((By.XPATH, '//table[@class="search-table"]/tbody/tr/td/label[@id="vtype_C"]')))
+                    except:
+                        print(self.driver.page_source)
+                        sys.exit()
                     submit_button = self.driver.find_element(By.XPATH, '//input[@id="btnQry"]')
                     search_input = self.driver.find_element(By.XPATH, '//input[@id="jud_kw"]') 
                     if(judgement_type != ''):
@@ -161,12 +172,12 @@ class JudgementScrawler:
                     
                     search_input.send_keys(search_str)
                     submit_button.click()
-                    
+
                     result_count = self.driver.find_element(By.XPATH, "//div[@id='result-count']/ul/li/a/span")
 
                     result_count = int(result_count.get_attribute("textContent"))
                     month_result_count += result_count
-                    
+
                     list_href = self.driver.find_elements(By.XPATH, "//div[@id='collapseGrpCourt']/div[@class='panel-body']/ul/li")
                     
                     # 所有法院
@@ -221,11 +232,11 @@ class JudgementScrawler:
         return judgement_links
 
     async def get_all_judgement_page(self, search_str, court_name, judgement_type):
-        links = await asyncio.to_thread(self.get_judgement_links_count, search_str, court_name)
+        links = await self.get_judgement_links_count(search_str, court_name)
         if(judgement_type == ''):
             print(f"總共 {links} 件")
         os.makedirs('judgement_docs', exist_ok=True)
-        judgement_links = await asyncio.to_thread(self.get_judgement_links, search_str, court_name, judgement_type) 
+        judgement_links = await self.get_judgement_links(search_str, court_name, judgement_type) 
         def get_judgement_page(link):
             link_id = link.split('&id=')[1].split('&ot=')[0]
             pure_page_link = 'https://judgment.judicial.gov.tw/EXPORTFILE/reformat.aspx?type=JD' + '&id=' + link_id
@@ -252,21 +263,27 @@ class JudgementScrawler:
             print(f"已儲存案件數: {count}/{len(judgement_links)}")
         print("案件全數抓取完成，程式結束。")
 
-async def get_all_judgement_docs():
-    tasks = []
+async def get_single_judgement_docs(court_name):
+    JudgementScrawler01 = JudgementScrawler()
+    await JudgementScrawler01.get_all_judgement_page(search_str='刑事判決', court_name=court_name, judgement_type='刑事')
+    
+def run_single_crawl(court_name):
+    asyncio.run(get_single_judgement_docs(court_name))
+
+def get_all_judgement_docs():
     court_name_list = ["臺灣臺北地方法院", "臺灣士林地方法院", "臺灣新北地方法院", "臺灣宜蘭地方法院", 
-                        "臺灣基隆地方法院", "臺灣桃園地方法院", "臺灣新竹地方法院",  "臺灣苗栗地方法院", "臺灣臺中地方法院", "臺灣彰化地方法院", "臺灣南投地方法院", 
-                        "臺灣雲林地方法院", "臺灣嘉義地方法院", "臺灣臺南地方法院", "臺灣高雄地方法院", "臺灣橋頭地方法院", "臺灣花蓮地方法院", "臺灣臺東地方法院", 
-                        "臺灣澎湖地方法院", "福建高等法院金門分院", "福建金門地方法院", "福建連江地方法院"]
-    async def get_single_judgement_docs(court_name):
-        JudgementScrawler01 = JudgementScrawler()
-        await JudgementScrawler01.get_all_judgement_page(search_str='刑事判決', court_name=court_name, judgement_type='刑事')
-        
+                       "臺灣基隆地方法院", "臺灣桃園地方法院", "臺灣新竹地方法院",  "臺灣苗栗地方法院", "臺灣臺中地方法院", "臺灣彰化地方法院", "臺灣南投地方法院", 
+                       "臺灣雲林地方法院", "臺灣嘉義地方法院", "臺灣臺南地方法院", "臺灣高雄地方法院", "臺灣橋頭地方法院", "臺灣花蓮地方法院", "臺灣臺東地方法院", 
+                       "臺灣澎湖地方法院", "福建高等法院金門分院", "福建金門地方法院", "福建連江地方法院"]
+
+    threads = []
     for court_name in court_name_list:
-        tasks.append(asyncio.create_task(get_single_judgement_docs(court_name)))
+        t = threading.Thread(target=run_single_crawl, args=(court_name,))
+        threads.append(t)
+        t.start()
 
-    await asyncio.gather(*tasks)
-
+    for t in threads:
+        t.join()
 
 if __name__ == "__main__":
-    asyncio.run(get_all_judgement_docs())
+    get_all_judgement_docs()
