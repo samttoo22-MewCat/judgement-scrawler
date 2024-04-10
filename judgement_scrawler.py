@@ -46,10 +46,14 @@ class JudgementScrawler:
             return pages
         # 指定法院
         else:
-            type = list_href.find_element(By.TAG_NAME, "a").get_attribute("textContent")
-            print(type)
-            if(court_name in type):
-                list_href = list_href.find_element(By.TAG_NAME, "a").get_attribute("href")
+            self.driver.switch_to.default_content()
+            for l in list_href:
+                type = l.get_attribute("textContent")
+                print(type)
+                if(court_name in type):
+                    list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
+            self.driver.switch_to.frame(frame)
+            
         
         links_count = 0
 
@@ -153,15 +157,15 @@ class JudgementScrawler:
                 
                 list_href = self.driver.find_elements(By.XPATH, "//div[@id='collapseGrpCourt']/div[@class='panel-body']/ul/li")
                 
-                
                 # 所有法院
                 if(court_name == ''):
                     list_href = self.driver.find_element(By.XPATH, "//*[@id='result-count']/ul/li/a").get_attribute("href")
                 # 指定法院
                 else:
-                    type = list_href.find_element(By.TAG_NAME, "a").get_attribute("textContent")
-                    if(court_name in type):
-                        list_href = list_href.find_element(By.TAG_NAME, "a").get_attribute("href")
+                    for l in list_href:
+                        type = l.get_attribute("textContent")
+                        if(court_name in type):
+                            list_href = l.find_element(By.TAG_NAME, "a").get_attribute("href")
                         
                 #如果沒有這個法院的搜尋結果，就跳下一個月
                 if(isinstance(list_href, list)):
@@ -229,4 +233,9 @@ class JudgementScrawler:
         print("案件全數抓取完成，程式結束。")
                 
 JudgementScrawler = JudgementScrawler()
-JudgementScrawler.get_all_judgement_page(search_str="性別平等教育法", court_name='', judgement_type='刑事 民事')
+court_name_list = ["臺灣臺北地方法院", "臺灣士林地方法院", "臺灣新北地方法院", "臺灣宜蘭地方法院", 
+                   "臺灣基隆地方法院", "臺灣桃園地方法院", "臺灣新竹地方法院",  "臺灣苗栗地方法院", "臺灣臺中地方法院", "臺灣彰化地方法院", "臺灣南投地方法院", 
+                   "臺灣雲林地方法院", "臺灣嘉義地方法院", "臺灣臺南地方法院", "臺灣高雄地方法院", "臺灣橋頭地方法院", "臺灣花蓮地方法院", "臺灣臺東地方法院", 
+                   "臺灣澎湖地方法院", "福建高等法院金門分院", "福建金門地方法院", "福建連江地方法院"]
+for court_name in court_name_list:
+    JudgementScrawler.get_all_judgement_page(search_str="刑事判決", court_name=court_name, judgement_type='刑事')
